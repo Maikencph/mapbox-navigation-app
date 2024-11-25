@@ -4,7 +4,7 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiYmVoYXYiLCJhIjoiY20zeDd0ZzF0MWU1YTJyb3Jrcm9va
 // Create the map with mobile-optimized settings
 const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/navigation-night-v1',
+    style: 'mapbox://styles/mapbox/dark-v11',
     center: [-74.5, 40],
     zoom: 9,
     pitch: 45,
