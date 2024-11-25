@@ -50,6 +50,13 @@
             max-width: 150px;
         }
 
+        .distance-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
         .info-box {
             background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(10px);
@@ -354,6 +361,9 @@
                 <span>Loading weather...</span>
             </div>
         </div>
+    </div>
+
+    <div class="distance-overlay">
         <div class="info-box">
             <div id="route-info">-- mi</div>
             <div>Distance</div>

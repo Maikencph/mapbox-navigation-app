@@ -40,52 +40,113 @@ const geolocate = new mapboxgl.GeolocateControl({
 // Add geolocate control above zoom controls
 map.addControl(geolocate, 'bottom-right');
 
-// Force accuracy circle to be visible
-map.on('load', () => {
-    geolocate.on('geolocate', (e) => {
-        if (!map.getLayer('accuracy-circle')) {
-            map.addLayer({
-                'id': 'accuracy-circle',
-                'type': 'circle',
-                'source': {
-                    'type': 'geojson',
-                    'data': {
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'Point',
-                            'coordinates': [e.coords.longitude, e.coords.latitude]
-                        },
-                        'properties': {
-                            'accuracy': e.coords.accuracy
-                        }
-                    }
-                },
-                'paint': {
-                    'circle-radius': ['*', ['get', 'accuracy'], map.getZoom()],
-                    'circle-color': 'rgba(29, 161, 242, 0.2)',
-                    'circle-stroke-color': 'rgba(29, 161, 242, 0.4)',
-                    'circle-stroke-width': 2
-                }
-            });
-        } else {
-            map.getSource('accuracy-circle').setData({
-                'type': 'Feature',
-                'geometry': {
-                    'type': 'Point',
-                    'coordinates': [e.coords.longitude, e.coords.latitude]
-                },
-                'properties': {
-                    'accuracy': e.coords.accuracy
-                }
-            });
+// Update accuracy circle function
+function updateAccuracyCircle(position) {
+    const coordinates = [position.coords.longitude, position.coords.latitude];
+    const accuracy = position.coords.accuracy;
+
+    const circleData = {
+        type: 'Feature',
+        geometry: {
+            type: 'Point',
+            coordinates: coordinates
+        },
+        properties: {
+            accuracy: accuracy
         }
-    });
+    };
+
+    if (!map.getSource('accuracy-circle')) {
+        map.addSource('accuracy-circle', {
+            type: 'geojson',
+            data: circleData
+        });
+
+        map.addLayer({
+            id: 'accuracy-circle',
+            type: 'circle',
+            source: 'accuracy-circle',
+            paint: {
+                'circle-radius': ['get', 'accuracy'],
+                'circle-color': '#4264fb',
+                'circle-opacity': 0.2,
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#4264fb'
+            }
+        });
+    } else {
+        map.getSource('accuracy-circle').setData(circleData);
+    }
+}
+
+// Update user location tracking
+map.on('load', () => {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+            (position) => {
+                const coordinates = [position.coords.longitude, position.coords.latitude];
+                
+                // Update user location marker
+                if (!map.getSource('user-location')) {
+                    map.addSource('user-location', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: coordinates
+                            }
+                        }
+                    });
+                    
+                    map.addLayer({
+                        id: 'user-location',
+                        type: 'circle',
+                        source: 'user-location',
+                        paint: {
+                            'circle-radius': 8,
+                            'circle-color': '#4264fb',
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': '#ffffff'
+                        }
+                    });
+                } else {
+                    map.getSource('user-location').setData({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: coordinates
+                        }
+                    });
+                }
+
+                // Update accuracy circle
+                updateAccuracyCircle(position);
+
+                // Center map if following is enabled
+                if (isNavigating) {
+                    map.easeTo({
+                        center: coordinates,
+                        duration: 1000
+                    });
+                }
+
+                // Update weather if needed
+                updateWeather(coordinates[1], coordinates[0]);
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    }
 
     // Initialize time and date
     updateTimeAndDate();
-    
-    // Trigger geolocation
-    geolocate.trigger();
     
     // Add 3D building layer
     map.addLayer({
