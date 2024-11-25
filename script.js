@@ -23,7 +23,9 @@ map.addControl(nav, 'bottom-right');
 // Add geolocation control with high accuracy for mobile
 const geolocate = new mapboxgl.GeolocateControl({
     positionOptions: {
-        enableHighAccuracy: true
+        enableHighAccuracy: true,
+        maximumAge: 0,  // Don't use cached position
+        timeout: 7000   // Timeout after 7 seconds
     },
     trackUserLocation: true,
     showUserHeading: true,
@@ -35,6 +37,28 @@ map.addControl(geolocate, 'bottom-right');
 let currentRoute = null;
 let userLocation = null;
 let destinationLocation = null;
+
+// Update user location when geolocation changes
+geolocate.on('geolocate', (e) => {
+    userLocation = [e.coords.longitude, e.coords.latitude];
+    
+    // If we have a destination, update the route
+    if (destinationLocation) {
+        getRoute(userLocation, destinationLocation);
+    }
+    
+    // Force map update to ensure accuracy circle is centered
+    map.triggerRepaint();
+});
+
+// Handle tracking error
+geolocate.on('error', (e) => {
+    console.error('Geolocation error:', e.error);
+    // Retry geolocation if there's an error
+    setTimeout(() => {
+        geolocate.trigger();
+    }, 2000);
+});
 
 // Add the search control
 const geocoder = new MapboxGeocoder({
@@ -50,14 +74,6 @@ geocoder.on('result', async (e) => {
     destinationLocation = e.result.center;
     if (userLocation) {
         await getRoute(userLocation, destinationLocation);
-    }
-});
-
-// Get user's location when available
-geolocate.on('geolocate', (e) => {
-    userLocation = [e.coords.longitude, e.coords.latitude];
-    if (destinationLocation) {
-        getRoute(userLocation, destinationLocation);
     }
 });
 
@@ -121,13 +137,6 @@ async function getRoute(start, end) {
 
 // Add 3D buildings when the map loads
 map.on('load', () => {
-    map.on('geolocate', (e) => {
-        // Reduce the accuracy radius to make the circle smaller
-        if (e.coords && e.coords.accuracy) {
-            e.coords.accuracy = e.coords.accuracy * 0.3; // Reduce to 30% of original size
-        }
-    });
-    
     // Trigger geolocation on load
     geolocate.trigger();
 
