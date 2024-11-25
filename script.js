@@ -329,21 +329,28 @@ function stopNavigation() {
 }
 
 // Handle travel mode selection
-document.querySelectorAll('.mode-option').forEach(option => {
-    option.addEventListener('click', () => {
-        // Update active state
-        document.querySelector('.mode-option.active').classList.remove('active');
-        option.classList.add('active');
+document.querySelectorAll('.travel-mode-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        // Remove active class from all buttons
+        document.querySelectorAll('.travel-mode-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
         
-        // Update current mode
-        currentTravelMode = option.dataset.mode;
+        // Add active class to clicked button
+        this.classList.add('active');
         
-        // Recalculate route if we have both locations
-        if (userLocation && destinationLocation) {
+        // Update the travel mode
+        currentTravelMode = this.dataset.mode;
+        
+        // If there's a destination set, recalculate the route
+        if (destinationLocation) {
             getRoute(userLocation, destinationLocation);
         }
     });
 });
+
+// Set initial active travel mode
+document.querySelector('.travel-mode-btn[data-mode="driving"]').classList.add('active');
 
 // Get direction icon based on maneuver type and travel mode
 function getDirectionIcon(maneuver, mode) {

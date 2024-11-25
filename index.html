@@ -329,17 +329,19 @@
             order: -1;
         }
 
-        /* Search bar container styles */
+        /* Search container styles */
         .search-container {
             position: fixed;
-            top: 80px; /* Position below travel icons */
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
             width: 80%;
             max-width: 400px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
         }
 
         #search {
@@ -356,6 +358,32 @@
 
         #search::placeholder {
             color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Travel mode buttons */
+        .travel-modes {
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+        }
+
+        .travel-mode-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .travel-mode-btn:hover,
+        .travel-mode-btn.active {
+            background: rgba(255, 255, 255, 0.2);
         }
 
         /* Travel options container */
@@ -396,15 +424,14 @@
 <body>
     <div id="map"></div>
     
-    <!-- Travel options -->
-    <div class="travel-options">
-        <button class="travel-mode" data-mode="driving">🚗</button>
-        <button class="travel-mode" data-mode="walking">🚶</button>
-        <button class="travel-mode" data-mode="cycling">🚲</button>
-    </div>
-
-    <!-- Search bar -->
+    <!-- Search and travel modes container -->
     <div class="search-container">
+        <div class="travel-modes">
+            <button class="travel-mode-btn" data-mode="driving">Drive</button>
+            <button class="travel-mode-btn" data-mode="walking">Walk</button>
+            <button class="travel-mode-btn" data-mode="cycling">Bike</button>
+            <button class="travel-mode-btn" data-mode="transit">Transit</button>
+        </div>
         <input type="text" id="search" placeholder="Search for a destination...">
     </div>
 
@@ -438,25 +465,6 @@
     <div class="icon-container" style="position: fixed; top: 180px; right: 20px;">
         <div class="icon-box">
             <i class="fas fa-leaf leaf-icon"></i>
-        </div>
-    </div>
-
-    <div id="travel-mode">
-        <div class="mode-option active" data-mode="driving">
-            <i class="fas fa-car"></i>
-            <span>Drive</span>
-        </div>
-        <div class="mode-option" data-mode="walking">
-            <i class="fas fa-walking"></i>
-            <span>Walk</span>
-        </div>
-        <div class="mode-option" data-mode="cycling">
-            <i class="fas fa-bicycle"></i>
-            <span>Bike</span>
-        </div>
-        <div class="mode-option" data-mode="driving-traffic">
-            <i class="fas fa-bus"></i>
-            <span>Transit</span>
         </div>
     </div>
 
