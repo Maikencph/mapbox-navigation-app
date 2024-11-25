@@ -381,16 +381,20 @@
             background: rgba(255, 255, 255, 0.1);
             color: white;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
         }
 
         .travel-mode-btn i {
             font-size: 16px;
         }
 
-        .travel-mode-btn:hover,
-        .travel-mode-btn.active {
+        .travel-mode-btn:hover {
             background: rgba(255, 255, 255, 0.2);
+        }
+
+        .travel-mode-btn.active {
+            background: #4CAF50;
+            color: white;
         }
 
         /* Travel options container */
