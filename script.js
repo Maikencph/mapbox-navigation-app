@@ -35,6 +35,10 @@ let destinationLocation = null;
 let currentTravelMode = 'driving';
 let isNavigating = false;
 
+// Variables for navigation
+let currentStep = 0;
+let routeSteps = [];
+
 // Initialize the map
 map.on('load', () => {
     // Trigger geolocation on load
@@ -350,88 +354,38 @@ geolocate.on('geolocate', (e) => {
     }
 });
 
-// Add start journey button
-const startJourneyButton = document.createElement('button');
-startJourneyButton.id = 'start-journey';
-startJourneyButton.innerHTML = '<i class="fas fa-play"></i> Start Journey';
-startJourneyButton.style.display = 'none';
-document.body.appendChild(startJourneyButton);
-
-// Handle start journey button click
-startJourneyButton.addEventListener('click', () => {
-    if (!isNavigating) {
-        startNavigation();
-    } else {
-        stopNavigation();
-    }
-});
-
-// Function to start navigation mode
-function startNavigation() {
-    if (!currentRoute) return;
+// Show directions in the panel
+function showDirections(steps) {
+    routeSteps = steps;
+    const panel = document.getElementById('directions-panel');
+    panel.innerHTML = '';
     
-    isNavigating = true;
-    currentStep = 0;
-    startJourneyButton.innerHTML = '<i class="fas fa-stop"></i> End Journey';
-    startJourneyButton.classList.add('active');
-
-    // Zoom to user's location and set up following
-    map.easeTo({
-        center: userLocation,
-        zoom: 18,
-        pitch: 60,
-        bearing: 0,
-        duration: 1000
-    });
-
-    // Enable user location tracking
-    geolocate.trigger();
-}
-
-// Function to stop navigation mode
-function stopNavigation() {
-    isNavigating = false;
-    startJourneyButton.innerHTML = '<i class="fas fa-play"></i> Start Journey';
-    startJourneyButton.classList.remove('active');
-    
-    // Reset map view to show entire route
-    if (userLocation && destinationLocation) {
-        const bounds = new mapboxgl.LngLatBounds()
-            .extend(userLocation)
-            .extend(destinationLocation);
-        map.fitBounds(bounds, {
-            padding: 100,
-            pitch: 60,
-            duration: 1000
-        });
-    }
-}
-
-// Handle travel mode selection
-document.querySelectorAll('.travel-mode-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        // Remove active class from all buttons
-        document.querySelectorAll('.travel-mode-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        // Add active class to clicked button
-        this.classList.add('active');
-        
-        // Update the travel mode
-        currentTravelMode = this.dataset.mode;
-        
-        // If there's a destination set, recalculate the route
-        if (destinationLocation) {
-            getRoute(userLocation, destinationLocation);
+    steps.forEach((step, index) => {
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'direction-step';
+        if (index === currentStep && isNavigating) {
+            stepDiv.classList.add('current-step');
         }
+        
+        const icon = document.createElement('i');
+        icon.className = `fas ${getDirectionIcon(step.maneuver.type, currentTravelMode)}`;
+        
+        const text = document.createElement('span');
+        text.textContent = step.maneuver.instruction;
+        
+        stepDiv.appendChild(icon);
+        stepDiv.appendChild(text);
+        panel.appendChild(stepDiv);
     });
-});
 
-// Set initial active travel mode
-document.querySelector('.travel-mode-btn[data-mode="driving"]').classList.add('active');
+    // Show the toggle directions button
+    document.getElementById('toggle-directions').style.display = 'flex';
+    
+    // Show the start journey button
+    document.getElementById('start-journey').style.display = 'block';
+}
 
-// Get direction icon based on maneuver type and travel mode
+// Get direction icon based on maneuver type
 function getDirectionIcon(maneuver, mode) {
     const icons = {
         'turn-right': 'fa-turn-right',
@@ -440,25 +394,74 @@ function getDirectionIcon(maneuver, mode) {
         'turn-slight-left': 'fa-turn-left',
         'turn-sharp-right': 'fa-turn-right',
         'turn-sharp-left': 'fa-turn-left',
-        'uturn': 'fa-turn-up',
-        'straight': 'fa-arrow-up',
+        'uturn': 'fa-u-turn',
         'merge': 'fa-merge',
-        'roundabout': 'fa-circle-right',
+        'fork': 'fa-code-fork',
+        'roundabout': 'fa-circle-notch',
+        'exit-roundabout': 'fa-circle-notch',
         'arrive': 'fa-location-dot'
     };
-    return icons[maneuver] || 'fa-arrow-up';
+    
+    return icons[maneuver] || 'fa-arrow-right';
 }
 
-// Format distance based on travel mode
-function formatDistance(meters, mode) {
-    const miles = meters / 1609.344;
-    if (mode === 'walking' || mode === 'cycling') {
-        // For walking/cycling, show smaller distances in feet
-        return miles < 0.1 ? `${Math.round(meters * 3.28084)} ft` : `${miles.toFixed(1)} mi`;
+// Handle start journey button
+document.getElementById('start-journey').addEventListener('click', function() {
+    isNavigating = !isNavigating;
+    this.textContent = isNavigating ? 'End Journey' : 'Start Journey';
+    
+    if (isNavigating) {
+        currentStep = 0;
+        document.getElementById('directions-panel').classList.add('active');
+        updateCurrentStep();
+    } else {
+        document.getElementById('directions-panel').classList.remove('active');
     }
-    // For driving/transit, always show in miles
-    return `${miles.toFixed(1)} mi`;
+});
+
+// Handle toggle directions button
+document.getElementById('toggle-directions').addEventListener('click', function() {
+    const panel = document.getElementById('directions-panel');
+    panel.classList.toggle('active');
+    
+    const text = panel.classList.contains('active') ? 'Hide Directions' : 'Show Directions';
+    this.querySelector('span').textContent = text;
+});
+
+// Update current navigation step
+function updateCurrentStep() {
+    if (!isNavigating) return;
+
+    const steps = document.querySelectorAll('.direction-step');
+    steps.forEach(step => step.classList.remove('current-step'));
+    
+    if (steps[currentStep]) {
+        steps[currentStep].classList.add('current-step');
+        steps[currentStep].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
+
+// Handle travel mode selection
+document.querySelectorAll('.travel-mode-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        document.querySelectorAll('.travel-mode-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.classList.add('active');
+        currentTravelMode = this.dataset.mode;
+        
+        if (userLocation && destinationLocation) {
+            getRoute(userLocation, destinationLocation);
+        }
+    });
+});
+
+// Add start journey button
+const startJourneyButton = document.createElement('button');
+startJourneyButton.id = 'start-journey';
+startJourneyButton.innerHTML = '<i class="fas fa-play"></i> Start Journey';
+startJourneyButton.style.display = 'none';
+document.body.appendChild(startJourneyButton);
 
 // Add the search control
 const geocoder = new MapboxGeocoder({
@@ -484,38 +487,6 @@ geocoder.on('result', async (e) => {
             duration: 1000
         });
     }
-});
-
-// Update directions panel with optional current step highlight
-function updateDirectionsPanel(steps, mode, currentStepIndex = -1) {
-    const panel = document.getElementById('directions-panel');
-    const toggle = document.getElementById('toggle-directions');
-    panel.innerHTML = '';
-
-    steps.forEach((step, index) => {
-        const div = document.createElement('div');
-        div.className = 'direction-step';
-        if (index === currentStepIndex) {
-            div.className += ' current-step';
-        }
-        div.innerHTML = `
-            <i class="fas ${getDirectionIcon(step.maneuver.type, mode)}"></i>
-            <span>${step.maneuver.instruction}</span>
-            <span class="direction-distance">${formatDistance(step.distance, mode)}</span>
-        `;
-        panel.appendChild(div);
-    });
-
-    toggle.classList.add('visible');
-}
-
-// Toggle directions panel
-document.getElementById('toggle-directions').addEventListener('click', () => {
-    const panel = document.getElementById('directions-panel');
-    panel.classList.toggle('active');
-    const isActive = panel.classList.contains('active');
-    document.getElementById('toggle-directions').querySelector('span').textContent = 
-        isActive ? 'Hide Directions' : 'Show Directions';
 });
 
 // Add light effect to make 3D buildings look better
