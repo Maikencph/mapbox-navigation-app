@@ -329,6 +329,50 @@
             order: -1;
         }
 
+        /* Search bar container styles */
+        .search-container {
+            position: fixed;
+            top: 80px; /* Position below travel icons */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 80%;
+            max-width: 400px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #search {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+
+        #search::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Travel options container */
+        .travel-options {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
         @media (max-width: 600px) {
             .overlay {
                 padding: 10px;
@@ -351,6 +395,19 @@
 </head>
 <body>
     <div id="map"></div>
+    
+    <!-- Travel options -->
+    <div class="travel-options">
+        <button class="travel-mode" data-mode="driving">🚗</button>
+        <button class="travel-mode" data-mode="walking">🚶</button>
+        <button class="travel-mode" data-mode="cycling">🚲</button>
+    </div>
+
+    <!-- Search bar -->
+    <div class="search-container">
+        <input type="text" id="search" placeholder="Search for a destination...">
+    </div>
+
     <div class="overlay">
         <div class="info-box">
             <div id="current-time"></div>
