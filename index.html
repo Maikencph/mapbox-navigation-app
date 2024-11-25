@@ -372,6 +372,9 @@
         }
 
         .travel-mode-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             padding: 8px 16px;
             border: none;
             border-radius: 8px;
@@ -379,6 +382,10 @@
             color: white;
             cursor: pointer;
             transition: background-color 0.3s;
+        }
+
+        .travel-mode-btn i {
+            font-size: 16px;
         }
 
         .travel-mode-btn:hover,
@@ -427,10 +434,22 @@
     <!-- Search and travel modes container -->
     <div class="search-container">
         <div class="travel-modes">
-            <button class="travel-mode-btn" data-mode="driving">Drive</button>
-            <button class="travel-mode-btn" data-mode="walking">Walk</button>
-            <button class="travel-mode-btn" data-mode="cycling">Bike</button>
-            <button class="travel-mode-btn" data-mode="transit">Transit</button>
+            <button class="travel-mode-btn" data-mode="driving">
+                <i class="fas fa-car"></i>
+                <span>Drive</span>
+            </button>
+            <button class="travel-mode-btn" data-mode="walking">
+                <i class="fas fa-walking"></i>
+                <span>Walk</span>
+            </button>
+            <button class="travel-mode-btn" data-mode="cycling">
+                <i class="fas fa-bicycle"></i>
+                <span>Bike</span>
+            </button>
+            <button class="travel-mode-btn" data-mode="transit">
+                <i class="fas fa-bus"></i>
+                <span>Transit</span>
+            </button>
         </div>
         <input type="text" id="search" placeholder="Search for a destination...">
     </div>
