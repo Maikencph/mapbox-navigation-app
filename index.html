@@ -2,124 +2,165 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <title>My Awesome Navigation App</title>
-    
-    <!-- Mapbox GL JS CSS -->
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-    <!-- Mapbox GL Geocoder CSS -->
-    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation App</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        * {
-            box-sizing: border-box;
+        body {
             margin: 0;
             padding: 0;
-            font-family: 'Arial', sans-serif;
-        }
-        
-        body { 
-            margin: 0; 
-            padding: 0; 
-            height: 100vh;
-            width: 100vw;
-            position: fixed;
-            overflow: hidden;
-        }
-        
-        #map { 
-            position: absolute; 
-            top: 0; 
-            bottom: 0; 
-            width: 100%;
-            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
 
-        .ui-overlay {
+        /* Style for the accuracy circle */
+        .mapboxgl-user-location-accuracy-circle {
+            transform: scale(0.3) !important;
+            transform-origin: center;
+        }
+
+        #map {
             position: absolute;
             top: 0;
-            left: 0;
+            bottom: 0;
             width: 100%;
-            height: 100%;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
             pointer-events: none;
-            color: white;
-            z-index: 1;
         }
 
         .info-box {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 20px;
             border-radius: 8px;
-            margin: 10px;
+            backdrop-filter: blur(10px);
             pointer-events: auto;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         }
 
-        .top-left {
-            top: 10px;
-            left: 10px;
-        }
-
-        .top-right {
-            top: 10px;
-            right: 10px;
-        }
-
-        .bottom-center {
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
+        .info-box div {
+            margin: 4px 0;
         }
 
         #current-time {
             font-size: 24px;
-            font-weight: bold;
+            font-weight: 600;
         }
 
         #current-date {
-            font-size: 14px;
             opacity: 0.8;
         }
 
         #route-info {
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .mapboxgl-ctrl-bottom-left {
-            bottom: 20px !important;
+            font-size: 20px;
+            font-weight: 600;
         }
 
         .mapboxgl-ctrl-geocoder {
-            min-width: 300px !important;
-            max-width: 300px !important;
-            margin: 10px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+            width: 100%;
+            max-width: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            margin: 10px;
+            border-radius: 8px;
+        }
+
+        .icon-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            pointer-events: auto;
+        }
+
+        .icon-box {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+        }
+
+        .icon-box:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .icon-box i {
+            font-size: 20px;
+        }
+
+        .happy-face {
+            color: #4CAF50;
+        }
+
+        .sad-face {
+            color: #f44336;
+        }
+
+        .leaf-icon {
+            color: #4CAF50;
+        }
+
+        @media (max-width: 600px) {
+            .overlay {
+                padding: 10px;
+            }
+
+            .info-box {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            #current-time {
+                font-size: 20px;
+            }
+
+            #route-info {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div class="ui-overlay">
-        <div class="info-box top-left">
+    <div class="overlay">
+        <div class="info-box">
             <div id="current-time"></div>
             <div id="current-date"></div>
         </div>
-        <div class="info-box top-right">
-            <div id="route-info">0.0 mi</div>
+        <div class="info-box">
+            <div id="route-info">-- mi</div>
+            <div>Distance</div>
         </div>
     </div>
-
-    <!-- Mapbox GL JS -->
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-    <!-- Mapbox GL Geocoder -->
-    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
-    <!-- Turf.js for distance calculations -->
-    <script src='https://unpkg.com/@turf/turf/turf.min.js'></script>
-    
+    <div class="icon-container" style="position: fixed; top: 100px; left: 20px;">
+        <div class="icon-box">
+            <i class="fas fa-smile happy-face"></i>
+        </div>
+        <div class="icon-box">
+            <i class="fas fa-frown sad-face"></i>
+        </div>
+    </div>
+    <div class="icon-container" style="position: fixed; top: 100px; right: 20px;">
+        <div class="icon-box">
+            <i class="fas fa-leaf leaf-icon"></i>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

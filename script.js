@@ -26,9 +26,15 @@ const geolocate = new mapboxgl.GeolocateControl({
         enableHighAccuracy: true
     },
     trackUserLocation: true,
-    showUserHeading: true
+    showUserHeading: true,
+    showAccuracyCircle: true
 });
 map.addControl(geolocate, 'bottom-right');
+
+// Initialize route data
+let currentRoute = null;
+let userLocation = null;
+let destinationLocation = null;
 
 // Add the search control
 const geocoder = new MapboxGeocoder({
@@ -39,8 +45,89 @@ const geocoder = new MapboxGeocoder({
 });
 map.addControl(geocoder, 'bottom-left');
 
+// Update route when a location is selected
+geocoder.on('result', async (e) => {
+    destinationLocation = e.result.center;
+    if (userLocation) {
+        await getRoute(userLocation, destinationLocation);
+    }
+});
+
+// Get user's location when available
+geolocate.on('geolocate', (e) => {
+    userLocation = [e.coords.longitude, e.coords.latitude];
+    if (destinationLocation) {
+        getRoute(userLocation, destinationLocation);
+    }
+});
+
+// Function to get route between two points
+async function getRoute(start, end) {
+    try {
+        const query = await fetch(
+            `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`
+        );
+        const json = await query.json();
+        const data = json.routes[0];
+        const route = data.geometry.coordinates;
+        const distance = data.distance;
+
+        // Update the route display
+        if (map.getSource('route')) {
+            map.getSource('route').setData({
+                'type': 'Feature',
+                'properties': {},
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': route
+                }
+            });
+        } else {
+            map.addLayer({
+                'id': 'route',
+                'type': 'line',
+                'source': {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': route
+                        }
+                    }
+                },
+                'layout': {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                'paint': {
+                    'line-color': '#4CAF50',
+                    'line-width': 5,
+                    'line-opacity': 0.75
+                }
+            });
+        }
+
+        // Update distance display
+        const routeInfo = document.getElementById('route-info');
+        const miles = (distance / 1609.344).toFixed(1);
+        routeInfo.textContent = `${miles} mi`;
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
 // Add 3D buildings when the map loads
 map.on('load', () => {
+    map.on('geolocate', (e) => {
+        // Reduce the accuracy radius to make the circle smaller
+        if (e.coords && e.coords.accuracy) {
+            e.coords.accuracy = e.coords.accuracy * 0.3; // Reduce to 30% of original size
+        }
+    });
+    
     // Trigger geolocation on load
     geolocate.trigger();
 
