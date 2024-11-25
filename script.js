@@ -6,8 +6,9 @@ const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/dark-v11',
     center: [-74.5, 40],
-    zoom: 9,
-    pitch: 45,
+    zoom: 14,
+    pitch: 60,
+    bearing: 0,
     attributionControl: false
 });
 
@@ -19,23 +20,6 @@ const nav = new mapboxgl.NavigationControl({
 });
 map.addControl(nav, 'bottom-right');
 
-// Add the directions control with mobile-optimized settings
-const directions = new MapboxDirections({
-    accessToken: mapboxgl.accessToken,
-    unit: 'metric',
-    profile: 'mapbox/driving',
-    alternatives: true,
-    geometries: 'geojson',
-    controls: {
-        inputs: true,
-        instructions: false
-    },
-    interactive: false,
-    flyTo: true
-});
-
-map.addControl(directions, 'top-left');
-
 // Add geolocation control with high accuracy for mobile
 const geolocate = new mapboxgl.GeolocateControl({
     positionOptions: {
@@ -46,22 +30,62 @@ const geolocate = new mapboxgl.GeolocateControl({
 });
 map.addControl(geolocate, 'bottom-right');
 
-// Get user's location and center the map
+// Add the search control
+const geocoder = new MapboxGeocoder({
+    accessToken: mapboxgl.accessToken,
+    mapboxgl: mapboxgl,
+    placeholder: 'Where to?',
+    marker: false
+});
+map.addControl(geocoder, 'bottom-left');
+
+// Add 3D buildings when the map loads
 map.on('load', () => {
     // Trigger geolocation on load
     geolocate.trigger();
-    
-    // Update instructions panel when route changes
-    directions.on('route', (e) => {
-        if (e.route && e.route[0]) {
-            const steps = e.route[0].legs[0].steps;
-            const instructionsDiv = document.getElementById('instructions');
-            instructionsDiv.innerHTML = steps.map(step => 
-                `<p>${step.maneuver.instruction}</p>`
-            ).join('');
+
+    // Add 3D building layer
+    map.addLayer({
+        'id': '3d-buildings',
+        'source': 'composite',
+        'source-layer': 'building',
+        'filter': ['==', 'extrude', 'true'],
+        'type': 'fill-extrusion',
+        'minzoom': 12,
+        'paint': {
+            'fill-extrusion-color': '#666',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-base': ['get', 'min_height'],
+            'fill-extrusion-opacity': 0.6
         }
     });
+
+    // Update UI with current time and weather
+    updateTimeAndWeather();
 });
+
+// Function to update time and weather info
+function updateTimeAndWeather() {
+    const timeDiv = document.getElementById('current-time');
+    const dateDiv = document.getElementById('current-date');
+    
+    function updateTime() {
+        const now = new Date();
+        timeDiv.textContent = now.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+        });
+        dateDiv.textContent = now.toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+    }
+    
+    updateTime();
+    setInterval(updateTime, 1000);
+}
 
 // Handle orientation changes
 window.addEventListener('orientationchange', () => {
