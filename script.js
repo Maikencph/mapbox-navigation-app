@@ -9,7 +9,7 @@ const map = new mapboxgl.Map({
     zoom: 14,
     pitch: 60,
     bearing: 0,
-    attributionControl: false
+    antialias: true // Enable antialiasing for smoother rendering
 });
 
 // Add minimal navigation controls for mobile
@@ -24,19 +24,73 @@ map.addControl(nav, 'bottom-right');
 const geolocate = new mapboxgl.GeolocateControl({
     positionOptions: {
         enableHighAccuracy: true,
-        maximumAge: 0,  // Don't use cached position
-        timeout: 7000   // Timeout after 7 seconds
+        maximumAge: 0,
+        timeout: 7000
     },
     trackUserLocation: true,
     showUserHeading: true,
     showAccuracyCircle: true
 });
+
 map.addControl(geolocate, 'bottom-right');
 
 // Initialize route data
 let currentRoute = null;
 let userLocation = null;
 let destinationLocation = null;
+
+// Get direction icon based on maneuver type
+function getDirectionIcon(maneuver) {
+    const icons = {
+        'turn-right': 'fa-turn-right',
+        'turn-left': 'fa-turn-left',
+        'turn-slight-right': 'fa-turn-right',
+        'turn-slight-left': 'fa-turn-left',
+        'turn-sharp-right': 'fa-turn-right',
+        'turn-sharp-left': 'fa-turn-left',
+        'uturn': 'fa-turn-up',
+        'straight': 'fa-arrow-up',
+        'merge': 'fa-merge',
+        'roundabout': 'fa-circle-right',
+        'arrive': 'fa-location-dot'
+    };
+    return icons[maneuver] || 'fa-arrow-up';
+}
+
+// Format distance
+function formatDistance(meters) {
+    const miles = meters / 1609.344;
+    return miles < 0.1 ? `${Math.round(meters)} ft` : `${miles.toFixed(1)} mi`;
+}
+
+// Update directions panel
+function updateDirectionsPanel(steps) {
+    const panel = document.getElementById('directions-panel');
+    const toggle = document.getElementById('toggle-directions');
+    panel.innerHTML = '';
+
+    steps.forEach(step => {
+        const div = document.createElement('div');
+        div.className = 'direction-step';
+        div.innerHTML = `
+            <i class="fas ${getDirectionIcon(step.maneuver.type)}"></i>
+            <span>${step.maneuver.instruction}</span>
+            <span class="direction-distance">${formatDistance(step.distance)}</span>
+        `;
+        panel.appendChild(div);
+    });
+
+    toggle.classList.add('visible');
+}
+
+// Toggle directions panel
+document.getElementById('toggle-directions').addEventListener('click', () => {
+    const panel = document.getElementById('directions-panel');
+    panel.classList.toggle('active');
+    const isActive = panel.classList.contains('active');
+    document.getElementById('toggle-directions').querySelector('span').textContent = 
+        isActive ? 'Hide Directions' : 'Show Directions';
+});
 
 // Update user location when geolocation changes
 geolocate.on('geolocate', (e) => {
@@ -54,7 +108,6 @@ geolocate.on('geolocate', (e) => {
 // Handle tracking error
 geolocate.on('error', (e) => {
     console.error('Geolocation error:', e.error);
-    // Retry geolocation if there's an error
     setTimeout(() => {
         geolocate.trigger();
     }, 2000);
@@ -74,6 +127,16 @@ geocoder.on('result', async (e) => {
     destinationLocation = e.result.center;
     if (userLocation) {
         await getRoute(userLocation, destinationLocation);
+        
+        // Fit map to show entire route
+        const bounds = new mapboxgl.LngLatBounds()
+            .extend(userLocation)
+            .extend(destinationLocation);
+        map.fitBounds(bounds, {
+            padding: 100,
+            pitch: 60,
+            duration: 1000
+        });
     }
 });
 
@@ -86,7 +149,7 @@ async function getRoute(start, end) {
         const json = await query.json();
         const data = json.routes[0];
         const route = data.geometry.coordinates;
-        const distance = data.distance;
+        const steps = data.legs[0].steps;
 
         // Update the route display
         if (map.getSource('route')) {
@@ -127,8 +190,11 @@ async function getRoute(start, end) {
 
         // Update distance display
         const routeInfo = document.getElementById('route-info');
-        const miles = (distance / 1609.344).toFixed(1);
+        const miles = (data.distance / 1609.344).toFixed(1);
         routeInfo.textContent = `${miles} mi`;
+
+        // Update directions panel
+        updateDirectionsPanel(steps);
 
     } catch (error) {
         console.error('Error:', error);
@@ -140,7 +206,7 @@ map.on('load', () => {
     // Trigger geolocation on load
     geolocate.trigger();
 
-    // Add 3D building layer
+    // Add 3D building layer with enhanced styling
     map.addLayer({
         'id': '3d-buildings',
         'source': 'composite',
@@ -149,11 +215,28 @@ map.on('load', () => {
         'type': 'fill-extrusion',
         'minzoom': 12,
         'paint': {
-            'fill-extrusion-color': '#666',
+            'fill-extrusion-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'height'],
+                0, '#666',
+                50, '#999',
+                100, '#aaa',
+                200, '#ccc'
+            ],
             'fill-extrusion-height': ['get', 'height'],
             'fill-extrusion-base': ['get', 'min_height'],
-            'fill-extrusion-opacity': 0.6
+            'fill-extrusion-opacity': 0.6,
+            'fill-extrusion-vertical-gradient': true
         }
+    });
+
+    // Add light effect to make 3D buildings look better
+    map.setLight({
+        anchor: 'viewport',
+        color: 'white',
+        intensity: 0.4,
+        position: [1.5, 90, 80]
     });
 
     // Update UI with current time and weather
