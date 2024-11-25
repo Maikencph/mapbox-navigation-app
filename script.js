@@ -1,23 +1,15 @@
-// Initialize the map
+// Initialize Mapbox access token
 mapboxgl.accessToken = 'pk.eyJ1IjoiYmVoYXYiLCJhIjoiY20zeDd0ZzF0MWU1YTJyb3Jrcm9vaGJubSJ9.18ZoBfkA2BbHCYxsunpOqg';
 
-// Current travel mode and navigation state
-let currentTravelMode = 'driving';
-let isNavigating = false;
-let currentStep = 0;
-
-// Create the map with mobile-optimized settings
+// Initialize the map
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/dark-v11',
     center: [-74.5, 40],
-    zoom: 14,
-    pitch: 60,
-    bearing: 0,
-    antialias: true
+    zoom: 9
 });
 
-// Add minimal navigation controls for mobile
+// Add navigation controls
 const nav = new mapboxgl.NavigationControl({
     showCompass: true,
     showZoom: true,
@@ -25,20 +17,141 @@ const nav = new mapboxgl.NavigationControl({
 });
 map.addControl(nav, 'bottom-right');
 
-// Add geolocation control with high accuracy for mobile
+// Add geolocate control
 const geolocate = new mapboxgl.GeolocateControl({
     positionOptions: {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 7000
+        enableHighAccuracy: true
     },
     trackUserLocation: true,
-    showUserHeading: true,
-    showAccuracyCircle: true
+    showUserHeading: true
 });
 
 // Add geolocate control above zoom controls
 map.addControl(geolocate, 'bottom-right');
+
+// Variables for tracking state
+let userLocation = null;
+let destinationLocation = null;
+let currentTravelMode = 'driving';
+let isNavigating = false;
+
+// Initialize the map
+map.on('load', () => {
+    // Trigger geolocation on load
+    geolocate.trigger();
+
+    // Listen for when the user's location is found
+    geolocate.on('geolocate', (e) => {
+        userLocation = [e.coords.longitude, e.coords.latitude];
+        updateAccuracyCircle(e);
+        
+        // Update weather when location is found
+        updateWeather(e.coords.latitude, e.coords.longitude);
+    });
+
+    // Initialize time and date
+    updateTimeAndDate();
+    setInterval(updateTimeAndDate, 1000);
+
+    // Add search functionality
+    const searchInput = document.getElementById('search');
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const query = this.value;
+            searchLocation(query);
+        }
+    });
+});
+
+// Search for a location
+async function searchLocation(query) {
+    try {
+        const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxgl.accessToken}`);
+        const data = await response.json();
+        
+        if (data.features && data.features.length > 0) {
+            const location = data.features[0];
+            destinationLocation = location.center;
+            
+            // Add marker for destination
+            if (window.destinationMarker) {
+                window.destinationMarker.remove();
+            }
+            window.destinationMarker = new mapboxgl.Marker()
+                .setLngLat(destinationLocation)
+                .addTo(map);
+
+            // Get route if we have both locations
+            if (userLocation) {
+                getRoute(userLocation, destinationLocation);
+            }
+
+            // Fit map to show both points
+            const bounds = new mapboxgl.LngLatBounds()
+                .extend(userLocation)
+                .extend(destinationLocation);
+            map.fitBounds(bounds, { padding: 100 });
+        }
+    } catch (error) {
+        console.error('Error searching location:', error);
+    }
+}
+
+// Get route between two points
+async function getRoute(start, end) {
+    try {
+        const query = await fetch(
+            `https://api.mapbox.com/directions/v5/mapbox/${currentTravelMode}/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
+            { method: 'GET' }
+        );
+        const json = await query.json();
+        const data = json.routes[0];
+        const route = data.geometry.coordinates;
+        const geojson = {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+                type: 'LineString',
+                coordinates: route
+            }
+        };
+        
+        // Remove existing route
+        if (map.getSource('route')) {
+            map.removeLayer('route');
+            map.removeSource('route');
+        }
+
+        // Add new route
+        map.addSource('route', {
+            type: 'geojson',
+            data: geojson
+        });
+        map.addLayer({
+            id: 'route',
+            type: 'line',
+            source: 'route',
+            layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            paint: {
+                'line-color': '#4CAF50',
+                'line-width': 5,
+                'line-opacity': 0.75
+            }
+        });
+
+        // Update route info
+        const distance = (data.distance / 1609.34).toFixed(1); // Convert to miles
+        document.getElementById('route-info').textContent = `${distance} mi`;
+
+        // Show directions panel
+        showDirections(data.legs[0].steps);
+    } catch (error) {
+        console.error('Error getting route:', error);
+    }
+}
 
 // Update accuracy circle function
 function updateAccuracyCircle(position) {
@@ -144,41 +257,7 @@ map.on('load', () => {
             }
         );
     }
-
-    // Initialize time and date
-    updateTimeAndDate();
-    
-    // Add 3D building layer
-    map.addLayer({
-        'id': '3d-buildings',
-        'source': 'composite',
-        'source-layer': 'building',
-        'filter': ['==', 'extrude', 'true'],
-        'type': 'fill-extrusion',
-        'minzoom': 12,
-        'paint': {
-            'fill-extrusion-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'height'],
-                0, '#666',
-                50, '#999',
-                100, '#aaa',
-                200, '#ccc'
-            ],
-            'fill-extrusion-height': ['get', 'height'],
-            'fill-extrusion-base': ['get', 'min_height'],
-            'fill-extrusion-opacity': 0.6,
-            'fill-extrusion-vertical-gradient': true
-        }
-    });
 });
-
-// Initialize route data
-let currentRoute = null;
-let userLocation = null;
-let destinationLocation = null;
-let routeSteps = null;
 
 // Function to update weather
 async function updateWeather(latitude, longitude) {
@@ -406,85 +485,6 @@ geocoder.on('result', async (e) => {
         });
     }
 });
-
-// Function to get route between two points
-async function getRoute(start, end) {
-    try {
-        // Adjust the profile based on travel mode
-        let profile;
-        switch (currentTravelMode) {
-            case 'walking':
-                profile = 'walking';
-                break;
-            case 'cycling':
-                profile = 'cycling';
-                break;
-            case 'driving-traffic':
-                profile = 'driving-traffic';
-                break;
-            default:
-                profile = 'driving';
-        }
-
-        const query = await fetch(
-            `https://api.mapbox.com/directions/v5/mapbox/${profile}/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&overview=full&alternatives=true&access_token=${mapboxgl.accessToken}`
-        );
-        const json = await query.json();
-        const data = json.routes[0];
-        const route = data.geometry.coordinates;
-        routeSteps = data.legs[0].steps;
-
-        // Update the route display
-        if (map.getSource('route')) {
-            map.getSource('route').setData({
-                'type': 'Feature',
-                'properties': {},
-                'geometry': {
-                    'type': 'LineString',
-                    'coordinates': route
-                }
-            });
-        } else {
-            map.addLayer({
-                'id': 'route',
-                'type': 'line',
-                'source': {
-                    'type': 'geojson',
-                    'data': {
-                        'type': 'Feature',
-                        'properties': {},
-                        'geometry': {
-                            'type': 'LineString',
-                            'coordinates': route
-                        }
-                    }
-                },
-                'layout': {
-                    'line-join': 'round',
-                    'line-cap': 'round'
-                },
-                'paint': {
-                    'line-color': '#4CAF50',
-                    'line-width': 5,
-                    'line-opacity': 0.75
-                }
-            });
-        }
-
-        // Show start journey button
-        startJourneyButton.style.display = 'block';
-
-        // Update distance display
-        const routeInfo = document.getElementById('route-info');
-        routeInfo.textContent = formatDistance(data.distance, currentTravelMode);
-
-        // Update directions panel
-        updateDirectionsPanel(routeSteps, currentTravelMode);
-
-    } catch (error) {
-        console.error('Error:', error);
-    }
-}
 
 // Update directions panel with optional current step highlight
 function updateDirectionsPanel(steps, mode, currentStepIndex = -1) {
